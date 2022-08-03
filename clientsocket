@@ -1,0 +1,135 @@
+using System;
+using System.Net.Sockets;
+using System.IO;
+using logiclib;
+using System.Xml.Serialization;
+using System.Runtime.Serialization.Formatters.Binary;
+
+namespace ClientSocket
+{
+    class Program
+    {
+        class ClientSocket
+        {
+            public static bool ReceiveStatement(Statement stat)
+            {
+                if (stat.PlayMove(false))
+                {
+                    return true;
+                }
+                Console.WriteLine("You failed to negate your enemy's statement. You lost!");
+                return false;
+            }
+            public static bool SendStatement(ref Statement stat)
+            {
+                stat = new Statement(Console.ReadLine());
+                if (!stat.StatementInvalid)
+                {
+                    if (stat.PlayMove(true))
+                    {
+                        if (!stat.StatementInvalid)
+                        {
+
+
+                            return true;
+                        }
+                        else
+                        {
+                            Console.WriteLine("Your statement was invalid. Try again");
+                            SendStatement(ref stat);
+                        }
+
+                    }
+                    else
+                    {
+                        Console.WriteLine("You failed to validate your statement. You lost!");
+                        return false;
+                    }
+                }
+                else
+                {
+                    Console.WriteLine("Your statement was invalid. Try again");
+                    SendStatement(ref stat);
+                }
+                return false;
+            }
+            static void Main(string[] args)
+            {
+                TcpClient socketForServer;
+                bool status = true;
+                //try
+                //{
+                socketForServer = new TcpClient("localhost", 8080);
+                Console.WriteLine("Connected to Server");
+                //}
+                /*catch
+                {
+                    Console.WriteLine("Failed to Connect to server{0}:999", "localhost");
+                    return;
+                }*/
+                NetworkStream networkStream = socketForServer.GetStream();
+                StreamReader streamreader = new StreamReader(networkStream);
+                StreamWriter streamwriter = new StreamWriter(networkStream);
+               
+                    string clientmessage = "";
+                    string servermessage = "";
+                    var serializer = new BinaryFormatter();
+                    while (status)
+                    {
+
+                        Console.Write("Server:" + servermessage);
+                    /*try
+                    {*/
+                    if (!String.IsNullOrEmpty(servermessage))
+                    {
+                        if (!ReceiveStatement((Statement)serializer.Deserialize(networkStream)))
+                        {
+                            clientmessage = "other player failed to negate your statement. You win";
+                        }
+                    }
+                        /*}
+                        catch (Exception e) {
+                            continue;
+
+                        }*/
+                       
+                        Console.WriteLine("! for not, & for and, | for or, > for imply, = for equivalence(iff), brackets as usual");
+                        Statement stat = new Statement("");
+                        if (SendStatement(ref stat))
+                        {
+
+                             clientmessage = String.Join("", stat.Tokens);
+                            serializer.Serialize(networkStream, stat);
+                        }
+                        else
+                        {
+                            clientmessage = "other player failed to validate their statement. You win";
+                        }
+                    /*if ((clientmessage == "bye") || (clientmessage == "BYE"))
+                    {
+                        status = false;
+                        streamwriter.WriteLine("bye");
+                        streamwriter.Flush();
+                    }
+
+                    else if ((clientmessage != "bye") && (clientmessage != "BYE"))
+                    {
+
+                        
+                        Console.WriteLine("Server:" + servermessage);
+                    }*/
+                    streamwriter.WriteLine(clientmessage);
+                    streamwriter.Flush();
+                    servermessage = streamreader.ReadLine();
+                    Console.WriteLine("Server:" + servermessage);
+
+                }
+
+
+                streamreader.Close();
+                networkStream.Close();
+                streamwriter.Close();
+            }
+        }
+    }
+}
